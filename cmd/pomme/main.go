@@ -39,7 +39,7 @@ func main() {
 		runDaemon()
 
 	case *mcpMode:
-		ensureDaemon(c)
+		ensureDaemon(c, true)
 		if err := mcp.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "MCP server error: %v\n", err)
 			os.Exit(1)
@@ -54,7 +54,7 @@ func main() {
 		fmt.Println(status.StatusLine)
 
 	case *startCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		_, err := c.Start()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -63,7 +63,7 @@ func main() {
 		fmt.Println("Timer started")
 
 	case *pauseCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		_, err := c.Pause()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -72,7 +72,7 @@ func main() {
 		fmt.Println("Timer paused")
 
 	case *skipCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		_, err := c.Skip()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -81,7 +81,7 @@ func main() {
 		fmt.Println("Skipped to next phase")
 
 	case *resetCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		_, err := c.Reset()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -90,7 +90,7 @@ func main() {
 		fmt.Println("Timer reset")
 
 	case *toggleBlockCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		status, err := c.ToggleBlock()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -103,7 +103,7 @@ func main() {
 		}
 
 	case *statsCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		status, err := c.Status()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -129,7 +129,7 @@ func main() {
 		}
 
 	case *graphCmd:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		status, err := c.Status()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -144,7 +144,7 @@ func main() {
 		fmt.Println("       M  T  W  T  F  S  S")
 
 	default:
-		ensureDaemon(c)
+		ensureDaemon(c, false)
 		if err := tui.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -180,12 +180,14 @@ func runDaemon() {
 	mb.Run()
 }
 
-func ensureDaemon(c *client.Client) {
+func ensureDaemon(c *client.Client, silent bool) {
 	if c.IsRunning() {
 		return
 	}
 
-	fmt.Println("Starting Pomme daemon...")
+	if !silent {
+		fmt.Println("Starting Pomme daemon...")
+	}
 
 	cmd := exec.Command(os.Args[0], "--daemon")
 	cmd.Stdout = nil
@@ -199,7 +201,9 @@ func ensureDaemon(c *client.Client) {
 	for i := 0; i < 30; i++ {
 		time.Sleep(100 * time.Millisecond)
 		if c.IsRunning() {
-			fmt.Println("Daemon started successfully")
+			if !silent {
+				fmt.Println("Daemon started successfully")
+			}
 			return
 		}
 	}
