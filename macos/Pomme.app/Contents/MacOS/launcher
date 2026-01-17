@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Pomme.app launcher script
-# Opens Terminal with the bundled pomme binary
-# Supports floating window mode via POMME_FLOAT=1 environment variable
+# Opens Kitty (preferred) or Terminal.app with the bundled pomme binary
+# Kitty supports native float-on-top via Cmd+Ctrl+T
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RESOURCES_DIR="$(dirname "$SCRIPT_DIR")/Resources"
@@ -14,13 +14,32 @@ if [ ! -x "$POMME_BIN" ]; then
     exit 1
 fi
 
-# Create a temporary script that runs pomme and keeps terminal open
+# Window dimensions
+WIN_WIDTH=420
+WIN_HEIGHT=380
+
+# Try Kitty first (supports native float-on-top)
+if [ -d "/Applications/kitty.app" ]; then
+    /Applications/kitty.app/Contents/MacOS/kitty \
+        --title "🍅 Pomme" \
+        --override initial_window_width=${WIN_WIDTH} \
+        --override initial_window_height=${WIN_HEIGHT} \
+        --override remember_window_size=no \
+        --override macos_quit_when_last_window_closed=yes \
+        --override confirm_os_window_close=0 \
+        --override macos_window_float=yes \
+        --single-instance \
+        --instance-group pomme \
+        "$POMME_BIN"
+    exit 0
+fi
+
+# Fallback to Terminal.app
 TEMP_SCRIPT=$(mktemp /tmp/pomme_launcher.XXXXXX)
 cat > "$TEMP_SCRIPT" << EOF
 #!/bin/bash
 clear
 "$POMME_BIN"
-# Keep terminal open if pomme exits unexpectedly
 if [ \$? -ne 0 ]; then
     echo "Press any key to close..."
     read -n 1
@@ -28,54 +47,15 @@ fi
 EOF
 chmod +x "$TEMP_SCRIPT"
 
-# Open Terminal.app with the script
 osascript << EOF
 tell application "Terminal"
     activate
     set newWindow to do script "$TEMP_SCRIPT; rm -f $TEMP_SCRIPT"
-    
-    -- Set window properties for a nice pomodoro experience
     try
         set current settings of newWindow to settings set "Basic"
     end try
-    
-    -- Make window smaller and position it nicely in top-right
     delay 0.3
     set bounds of front window to {900, 50, 1300, 400}
-    
-    -- Set custom title
     set custom title of front window to "🍅 Pomme"
 end tell
 EOF
-
-# If POMME_FLOAT is set, try to make window float on top
-# This requires the user to grant accessibility permissions
-if [ "${POMME_FLOAT:-0}" = "1" ]; then
-    # Use a Swift snippet to set window level (requires Accessibility)
-    swift << 'SWIFT' 2>/dev/null || true
-import Cocoa
-
-// Wait a moment for Terminal to be ready
-Thread.sleep(forTimeInterval: 0.5)
-
-// Find Terminal's windows
-if let terminalApp = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Terminal").first {
-    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-    
-    for window in windows {
-        if let ownerPID = window[kCGWindowOwnerPID as String] as? Int32,
-           ownerPID == terminalApp.processIdentifier,
-           let windowNumber = window[kCGWindowNumber as String] as? Int32 {
-            // Note: Actually setting window level requires either:
-            // 1. Using the Accessibility API with permissions
-            // 2. Being the window's owner process
-            // Terminal.app owns its windows, so we can't directly modify them
-            print("Found Terminal window: \(windowNumber)")
-        }
-    }
-}
-SWIFT
-    
-    echo "Note: Float-on-top mode requires granting Accessibility permissions to Terminal.app"
-    echo "You can also use third-party tools like 'Afloat' or 'KeepingYouAwake' for this feature."
-fi
