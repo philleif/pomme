@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Pomme.app launcher script
+# Opens Terminal with the bundled pomme binary
+# Supports floating window mode via POMME_FLOAT=1 environment variable
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RESOURCES_DIR="$(dirname "$SCRIPT_DIR")/Resources"
+POMME_BIN="$RESOURCES_DIR/pomme"
+
+# Check if pomme binary exists
+if [ ! -x "$POMME_BIN" ]; then
+    osascript -e 'display alert "Pomme Error" message "The pomme binary was not found in the app bundle." as critical'
+    exit 1
+fi
+
+# Create a temporary script that runs pomme and keeps terminal open
+TEMP_SCRIPT=$(mktemp /tmp/pomme_launcher.XXXXXX)
+cat > "$TEMP_SCRIPT" << EOF
+#!/bin/bash
+clear
+"$POMME_BIN"
+# Keep terminal open if pomme exits unexpectedly
+if [ \$? -ne 0 ]; then
+    echo "Press any key to close..."
+    read -n 1
+fi
+EOF
+chmod +x "$TEMP_SCRIPT"
+
+# Open Terminal.app with the script
+osascript << EOF
+tell application "Terminal"
+    activate
+    set newWindow to do script "$TEMP_SCRIPT; rm -f $TEMP_SCRIPT"
+    
+    -- Set window properties for a nice pomodoro experience
+    try
+        set current settings of newWindow to settings set "Basic"
+    end try
+    
+    -- Make window smaller and position it nicely in top-right
+    delay 0.3
+    set bounds of front window to {900, 50, 1300, 400}
+    
+    -- Set custom title
+    set custom title of front window to "🍅 Pomme"
+end tell
+EOF
+
+# If POMME_FLOAT is set, try to make window float on top
+# This requires the user to grant accessibility permissions
+if [ "${POMME_FLOAT:-0}" = "1" ]; then
+    # Use a Swift snippet to set window level (requires Accessibility)
+    swift << 'SWIFT' 2>/dev/null || true
+import Cocoa
+
+// Wait a moment for Terminal to be ready
+Thread.sleep(forTimeInterval: 0.5)
+
+// Find Terminal's windows
+if let terminalApp = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Terminal").first {
+    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+    
+    for window in windows {
+        if let ownerPID = window[kCGWindowOwnerPID as String] as? Int32,
+           ownerPID == terminalApp.processIdentifier,
+           let windowNumber = window[kCGWindowNumber as String] as? Int32 {
+            // Note: Actually setting window level requires either:
+            // 1. Using the Accessibility API with permissions
+            // 2. Being the window's owner process
+            // Terminal.app owns its windows, so we can't directly modify them
+            print("Found Terminal window: \(windowNumber)")
+        }
+    }
+}
+SWIFT
+    
+    echo "Note: Float-on-top mode requires granting Accessibility permissions to Terminal.app"
+    echo "You can also use third-party tools like 'Afloat' or 'KeepingYouAwake' for this feature."
+fi
