@@ -11,12 +11,11 @@ import (
 	"time"
 
 	"github.com/philleif/pomme/internal/blocker"
+	"github.com/philleif/pomme/internal/config"
 	"github.com/philleif/pomme/internal/sparkline"
 	"github.com/philleif/pomme/internal/storage"
 	"github.com/philleif/pomme/internal/timer"
 )
-
-const DailyGoal = 12
 
 type Command struct {
 	Action string `json:"action"`
@@ -44,6 +43,7 @@ type StatusData struct {
 
 type Daemon struct {
 	mu       sync.RWMutex
+	config   config.Config
 	timer    *timer.Timer
 	storage  *storage.Storage
 	blocker  *blocker.Blocker
@@ -54,15 +54,28 @@ type Daemon struct {
 }
 
 func New() (*Daemon, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		cfg = config.Default()
+	}
+
 	store, err := storage.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open storage: %w", err)
 	}
 
-	t := timer.New(timer.DefaultConfig())
+	timerCfg := timer.Config{
+		WorkDuration:       cfg.WorkDurationTime(),
+		ShortBreakDuration: cfg.ShortBreakDurationTime(),
+		LongBreakDuration:  cfg.LongBreakDurationTime(),
+		LongBreakAfter:     cfg.LongBreakAfter,
+	}
+
+	t := timer.New(timerCfg)
 	b := blocker.New()
 
 	d := &Daemon{
+		config:  cfg,
 		timer:   t,
 		storage: store,
 		blocker: b,
@@ -72,6 +85,10 @@ func New() (*Daemon, error) {
 	t.SetIntervalsToday(todayCount)
 
 	t.SetOnComplete(d.onPhaseComplete)
+
+	// Apply config settings
+	b.SetEnabled(cfg.BlockMessages)
+	b.SetAlwaysBlock(cfg.AlwaysBlock)
 
 	return d, nil
 }
@@ -244,13 +261,14 @@ func (d *Daemon) sendResponse(conn net.Conn, resp Response) {
 
 func (d *Daemon) GetStatus() StatusData {
 	status := d.timer.Status()
+	dailyGoal := d.config.DailyGoal
 
 	days, _ := d.storage.Last7Days()
 	intervals := make([]int, len(days))
 	for i, day := range days {
 		intervals[i] = day.Intervals
 	}
-	spark := sparkline.GenerateBrailleSpaced(intervals, DailyGoal)
+	spark := sparkline.GenerateBrailleSpaced(intervals, dailyGoal)
 
 	remaining := status.Remaining
 	if remaining < 0 {
@@ -271,11 +289,9 @@ func (d *Daemon) GetStatus() StatusData {
 		icon = "⏸"
 	}
 
-	statusLine := fmt.Sprintf("%s %02d:%02d %s", icon, mins, secs, spark)
-
 	// Enhanced status line with subscript for today's count
 	timeStr := fmt.Sprintf("%02d:%02d", mins, secs)
-	statusLine = sparkline.CompactStatus(icon, timeStr, spark, status.IntervalsToday)
+	statusLine := sparkline.CompactStatus(icon, timeStr, spark, status.IntervalsToday)
 
 	return StatusData{
 		TimerState:       status.State.String(),
@@ -283,7 +299,7 @@ func (d *Daemon) GetStatus() StatusData {
 		Remaining:        fmt.Sprintf("%02d:%02d", mins, secs),
 		RemainingSeconds: int(remaining.Seconds()),
 		IntervalsToday:   status.IntervalsToday,
-		DailyGoal:        DailyGoal,
+		DailyGoal:        dailyGoal,
 		BlockEnabled:     d.blocker.Enabled(),
 		AlwaysBlock:      d.blocker.AlwaysBlock(),
 		Sparkline:        spark,

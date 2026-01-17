@@ -56,7 +56,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		WorkDuration:       25 * time.Minute,
+		WorkDuration:       30 * time.Minute,
 		ShortBreakDuration: 5 * time.Minute,
 		LongBreakDuration:  20 * time.Minute,
 		LongBreakAfter:     4,

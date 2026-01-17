@@ -4,7 +4,7 @@ A macOS pomodoro timer with Messages app blocking, menu bar integration, and TUI
 
 ## Features
 
-- **Pomodoro Timer**: 25-min work / 5-min break / 20-min long break (after 4 intervals)
+- **Pomodoro Timer**: 30-min work / 5-min break / 20-min long break (configurable)
 - **App Blocking**: Automatically blocks Messages.app during focus intervals
 - **Menu Bar**: Live timer display with weekly sparkline
 - **TUI Interface**: Compact terminal UI built with Bubble Tea
@@ -82,8 +82,27 @@ bind-key O run-shell "pomme --pause"
 bind-key K run-shell "pomme --skip"
 ```
 
+## Configuration
+
+Pomme creates a config file at `~/.pomme/config.json` on first run:
+
+```json
+{
+  "work_duration_minutes": 30,
+  "short_break_duration_minutes": 5,
+  "long_break_duration_minutes": 20,
+  "long_break_after_intervals": 4,
+  "daily_goal": 12,
+  "block_messages_enabled": true,
+  "always_block": false
+}
+```
+
+Edit this file to customize your intervals. Restart the daemon for changes to take effect.
+
 ## Data Storage
 
+- Config: `~/.pomme/config.json`
 - Database: `~/.pomme/pomme.db`
 - Socket: `~/.pomme/pomme.sock`
 
@@ -91,10 +110,10 @@ bind-key K run-shell "pomme --skip"
 
 Based on research:
 
-- **25-minute work intervals** maximize focus without burnout
+- **30-minute work intervals** (default) - balance focus and sustainability
 - **5-minute breaks** allow mental recovery
 - **Long break (20 min) after 4 intervals** prevents fatigue
-- **12 intervals/day** = ~5 hours of deep focused work
+- **12 intervals/day** = ~6 hours of deep focused work
 - **Block distractions** - Messages blocking prevents context switching
 
 ## Sparkline Display
