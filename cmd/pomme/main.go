@@ -11,6 +11,7 @@ import (
 
 	"github.com/philleif/pomme/internal/client"
 	"github.com/philleif/pomme/internal/daemon"
+	"github.com/philleif/pomme/internal/mcp"
 	"github.com/philleif/pomme/internal/menubar"
 	"github.com/philleif/pomme/internal/sparkline"
 	"github.com/philleif/pomme/internal/storage"
@@ -19,6 +20,7 @@ import (
 
 func main() {
 	daemonMode := flag.Bool("daemon", false, "Run as daemon (menu bar only)")
+	mcpMode := flag.Bool("mcp", false, "Run as MCP server (stdio)")
 	statusMode := flag.Bool("status", false, "Print status line (for tmux)")
 	startCmd := flag.Bool("start", false, "Start/resume timer")
 	pauseCmd := flag.Bool("pause", false, "Pause timer")
@@ -35,6 +37,13 @@ func main() {
 	switch {
 	case *daemonMode:
 		runDaemon()
+
+	case *mcpMode:
+		ensureDaemon(c)
+		if err := mcp.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "MCP server error: %v\n", err)
+			os.Exit(1)
+		}
 
 	case *statusMode:
 		status, err := c.Status()

@@ -71,4 +71,9 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#FF6347")).
 			Padding(1, 2)
+
+	// State-based colors for border and timer background
+	colorWorkActive  = lipgloss.Color("#00FF00") // bright green
+	colorBreakActive = lipgloss.Color("#2E5A2E") // pale dark green
+	colorInactive    = lipgloss.Color("#FF6347") // red
 )

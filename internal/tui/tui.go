@@ -117,16 +117,26 @@ func (m Model) View() string {
 
 	var b strings.Builder
 
-	// Header line: title | timer | counter (space-between)
-	var timerStyle lipgloss.Style
+	// Determine state color: bright green for work, pale dark green for break, red for inactive
+	var stateColor lipgloss.Color
 	switch {
-	case m.status.TimerState == "paused":
-		timerStyle = timerPausedStyle
-	case m.status.Phase == "work":
-		timerStyle = timerStyleNormal
+	case m.status.TimerState == "running" && m.status.Phase == "work":
+		stateColor = colorWorkActive
+	case m.status.TimerState == "running":
+		stateColor = colorBreakActive
 	default:
-		timerStyle = timerBreakStyle
+		stateColor = colorInactive
 	}
+
+	// Header line: title | timer | counter (space-between)
+	timerFg := lipgloss.Color("#FFFFFF")
+	if m.status.TimerState == "running" {
+		timerFg = lipgloss.Color("#000000")
+	}
+	timerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(timerFg).
+		Background(stateColor)
 
 	title := titleStyle.Render("🍅 POMME")
 	timer := timerStyle.Render(fmt.Sprintf(" %s ", m.status.Remaining))
@@ -204,7 +214,9 @@ func (m Model) View() string {
 
 	b.WriteString(helpStyle.Render("[q]uit"))
 
-	content := boxStyle.Render(b.String())
+	// Use state-colored border
+	dynamicBox := boxStyle.BorderForeground(stateColor)
+	content := dynamicBox.Render(b.String())
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 }
