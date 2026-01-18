@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"sync"
@@ -51,6 +52,7 @@ type Daemon struct {
 
 	onStatusChange func(StatusData)
 	stopChan       chan struct{}
+	lastDate       string
 }
 
 func New() (*Daemon, error) {
@@ -75,10 +77,11 @@ func New() (*Daemon, error) {
 	b := blocker.New()
 
 	d := &Daemon{
-		config:  cfg,
-		timer:   t,
-		storage: store,
-		blocker: b,
+		config:   cfg,
+		timer:    t,
+		storage:  store,
+		blocker:  b,
+		lastDate: time.Now().Format("2006-01-02"),
 	}
 
 	todayCount, _ := store.TodayCount()
@@ -110,6 +113,16 @@ func (d *Daemon) sendNotification(title, message string) {
 	exec.Command("osascript", "-e", script).Run()
 }
 
+func (d *Daemon) refreshSimpleBar() {
+	if !d.config.SimpleBarEnabled {
+		return
+	}
+	url := fmt.Sprintf("http://localhost:%d/widget/user-widget/refresh/%d",
+		d.config.SimpleBarPort, d.config.SimpleBarWidgetID)
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	client.Get(url)
+}
+
 func (d *Daemon) SetOnStatusChange(fn func(StatusData)) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -124,6 +137,8 @@ func (d *Daemon) notifyStatusChange() {
 	if fn != nil {
 		fn(d.GetStatus())
 	}
+
+	go d.refreshSimpleBar()
 }
 
 func (d *Daemon) Start(socketPath string) error {
@@ -154,10 +169,28 @@ func (d *Daemon) statusUpdateLoop() {
 		case <-d.stopChan:
 			return
 		case <-ticker.C:
+			d.checkDateChange()
 			if d.timer.State() == timer.StateRunning {
 				d.notifyStatusChange()
 			}
 		}
+	}
+}
+
+func (d *Daemon) checkDateChange() {
+	today := time.Now().Format("2006-01-02")
+
+	d.mu.Lock()
+	if d.lastDate != today {
+		d.lastDate = today
+		d.mu.Unlock()
+
+		// Date changed, reset the timer's interval count from storage
+		todayCount, _ := d.storage.TodayCount()
+		d.timer.SetIntervalsToday(todayCount)
+		d.notifyStatusChange()
+	} else {
+		d.mu.Unlock()
 	}
 }
 

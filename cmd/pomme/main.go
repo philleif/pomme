@@ -22,6 +22,7 @@ func main() {
 	daemonMode := flag.Bool("daemon", false, "Run as daemon (menu bar only)")
 	mcpMode := flag.Bool("mcp", false, "Run as MCP server (stdio)")
 	statusMode := flag.Bool("status", false, "Print status line (for tmux)")
+	simpleBarMode := flag.Bool("simplebar", false, "Print status for simple-bar widget")
 	startCmd := flag.Bool("start", false, "Start/resume timer")
 	pauseCmd := flag.Bool("pause", false, "Pause timer")
 	skipCmd := flag.Bool("skip", false, "Skip to next phase")
@@ -52,6 +53,26 @@ func main() {
 			os.Exit(0)
 		}
 		fmt.Println(status.StatusLine)
+
+	case *simpleBarMode:
+		status, err := c.Status()
+		if err != nil {
+			fmt.Println("⏹ --:--")
+			os.Exit(0)
+		}
+		// Compact format for simple-bar: icon time count
+		var icon string
+		switch {
+		case status.TimerState == "paused":
+			icon = "⏸"
+		case status.TimerState == "idle":
+			icon = "⏹"
+		case status.Phase == "work":
+			icon = "🍅"
+		default:
+			icon = "☕"
+		}
+		fmt.Printf("%s %s %s\n", icon, status.Remaining, subscript(status.IntervalsToday))
 
 	case *startCmd:
 		ensureDaemon(c, false)
@@ -178,6 +199,19 @@ func runDaemon() {
 	}()
 
 	mb.Run()
+}
+
+func subscript(n int) string {
+	if n == 0 {
+		return "₀"
+	}
+	digits := []rune{'₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'}
+	var result []rune
+	for n > 0 {
+		result = append([]rune{digits[n%10]}, result...)
+		n /= 10
+	}
+	return string(result)
 }
 
 func ensureDaemon(c *client.Client, silent bool) {

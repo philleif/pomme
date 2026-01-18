@@ -15,6 +15,9 @@ type Config struct {
 	DailyGoal          int  `json:"daily_goal"`
 	BlockMessages      bool `json:"block_messages_enabled"`
 	AlwaysBlock        bool `json:"always_block"`
+	SimpleBarEnabled   bool `json:"simplebar_enabled"`
+	SimpleBarWidgetID  int  `json:"simplebar_widget_id"`
+	SimpleBarPort      int  `json:"simplebar_port"`
 }
 
 func Default() Config {
@@ -26,6 +29,9 @@ func Default() Config {
 		DailyGoal:          12,
 		BlockMessages:      true,
 		AlwaysBlock:        false,
+		SimpleBarEnabled:   false,
+		SimpleBarWidgetID:  1,
+		SimpleBarPort:      7776,
 	}
 }
 
