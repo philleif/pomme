@@ -159,6 +159,20 @@ Output format: `🍅 18:32 ₃`
 
 Related config fields: `simplebar_enabled`, `simplebar_widget_id`, `simplebar_port`.
 
+## skhd Integration
+
+Bind global hotkeys to Pomme commands using [skhd](https://github.com/koekeishiya/skhd). Add to your `~/.skhdrc`:
+
+```bash
+ctrl + alt - s : pomme --toggle
+ctrl + alt - k : pomme --skip
+ctrl + alt - r : pomme --reset
+ctrl + alt - b : pomme --toggle-block
+ctrl + alt - a : pomme --toggle-always
+```
+
+The daemon auto-starts on first command, so no setup beyond the keybindings is needed.
+
 ## MCP Integration
 
 Pomme includes an MCP (Model Context Protocol) server for AI assistant integration. Run it via stdio:
