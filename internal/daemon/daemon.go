@@ -92,6 +92,7 @@ func New() (*Daemon, error) {
 	// Apply config settings
 	b.SetEnabled(cfg.BlockMessages)
 	b.SetAlwaysBlock(cfg.AlwaysBlock)
+	b.SetNotificationsEnabled(cfg.NotificationsEnabled)
 
 	return d, nil
 }
@@ -109,6 +110,9 @@ func (d *Daemon) onPhaseComplete(phase timer.Phase) {
 }
 
 func (d *Daemon) sendNotification(title, message string) {
+	if !d.config.NotificationsEnabled {
+		return
+	}
 	script := fmt.Sprintf(`display notification "%s" with title "%s"`, message, title)
 	exec.Command("osascript", "-e", script).Run()
 }
@@ -188,6 +192,8 @@ func (d *Daemon) checkDateChange() {
 		// Date changed, reset the timer's interval count from storage
 		todayCount, _ := d.storage.TodayCount()
 		d.timer.SetIntervalsToday(todayCount)
+		// Also reset the long-break counter for the new day
+		d.timer.ResetIntervalsSinceBreak()
 		d.notifyStatusChange()
 	} else {
 		d.mu.Unlock()

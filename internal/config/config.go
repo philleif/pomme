@@ -18,6 +18,8 @@ type Config struct {
 	SimpleBarEnabled   bool `json:"simplebar_enabled"`
 	SimpleBarWidgetID  int  `json:"simplebar_widget_id"`
 	SimpleBarPort      int  `json:"simplebar_port"`
+	SketchyBarMode       bool `json:"sketchybar_mode"`
+	NotificationsEnabled bool `json:"notifications_enabled"`
 }
 
 func Default() Config {
@@ -32,6 +34,8 @@ func Default() Config {
 		SimpleBarEnabled:   false,
 		SimpleBarWidgetID:  1,
 		SimpleBarPort:      7776,
+		SketchyBarMode:       false,
+		NotificationsEnabled: true,
 	}
 }
 

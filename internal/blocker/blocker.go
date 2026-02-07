@@ -14,12 +14,13 @@ const (
 )
 
 type Blocker struct {
-	mu          sync.RWMutex
-	enabled     bool
-	alwaysBlock bool
-	inInterval  bool
-	stopChan    chan struct{}
-	running     bool
+	mu                   sync.RWMutex
+	enabled              bool
+	alwaysBlock          bool
+	inInterval           bool
+	notificationsEnabled bool
+	stopChan             chan struct{}
+	running              bool
 }
 
 func New() *Blocker {
@@ -96,8 +97,17 @@ func (b *Blocker) killMessages() {
 }
 
 func (b *Blocker) sendNotification() {
+	if !b.notificationsEnabled {
+		return
+	}
 	script := `display notification "Messages is blocked during focus time" with title "Pomme"`
 	exec.Command("osascript", "-e", script).Run()
+}
+
+func (b *Blocker) SetNotificationsEnabled(enabled bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.notificationsEnabled = enabled
 }
 
 func (b *Blocker) SetEnabled(enabled bool) {

@@ -245,6 +245,12 @@ func (t *Timer) SetIntervalsToday(n int) {
 	t.intervalsToday = n
 }
 
+func (t *Timer) ResetIntervalsSinceBreak() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.intervalsSinceBreak = 0
+}
+
 type Status struct {
 	State          State
 	Phase          Phase
